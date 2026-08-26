@@ -1,0 +1,56 @@
+name: 소름 자동 발행
+
+# 발행 시각(KST) = cron(UTC) + 5분 여유 (at <= now 보장)
+#   07:00 KST = 22:00 UTC(전날)   → 22:05
+#   12:00 KST = 03:00 UTC          → 03:05
+#   18:00 KST = 09:00 UTC          → 09:05
+on:
+  schedule:
+    - cron: '5 22 * * *'
+    - cron: '5 3 * * *'
+    - cron: '5 9 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '1이면 발행 안 하고 대상만 확인'
+        required: false
+        default: '0'
+
+# 발행 기록(yt_sent/ig_sent)을 저장소에 되커밋하려면 쓰기 권한 필요
+permissions:
+  contents: write
+
+# 동시 실행 방지 (겹쳐서 중복 발행되는 것 차단)
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Seoul
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 발행 실행
+        id: pub
+        env:
+          YT_CLIENT_SECRET_JSON: ${{ secrets.YT_CLIENT_SECRET_JSON }}
+          YT_TOKEN_JSON: ${{ secrets.YT_TOKEN_JSON }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: python publish.py
+
+      - name: 발행 기록 커밋
+        if: steps.pub.outputs.changed == 'true'
+        run: |
+          git config user.name "chills-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add yt_sent.json ig_sent.json
+          git commit -m "발행 기록 갱신 [skip ci]" || echo "변경 없음"
+          git push

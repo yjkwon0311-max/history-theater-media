@@ -1,0 +1,9 @@
+# 토큰/시크릿은 절대 커밋하지 않는다 (전부 GitHub Secrets로만)
+*token*.txt
+*secret*
+client_secret.json
+yt_token.json
+*.env
+
+__pycache__/
+*.pyc
