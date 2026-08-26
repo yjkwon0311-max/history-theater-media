@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""소름 돋는 세상 — 클라우드 자동 발행 (GitHub Actions에서 실행).
+"""역사 실화극장 — 클라우드 자동 발행 (GitHub Actions에서 실행).
 
 PC 전원과 무관하게 정해진 시각에 유튜브 + 인스타에 동시 발행한다.
 표준 라이브러리만 쓴다. 토큰은 전부 환경변수(GitHub Secrets)에서 읽는다.
@@ -280,7 +280,7 @@ def main():
     ig_sent = load_json(IG_SENT, {})
 
     due = due_items(posts, yt_sent, ig_sent, now)
-    log("=== 소름 클라우드 발행 %s (KST) ===" % now.strftime("%Y-%m-%d %H:%M"))
+    log("=== 역사 실화극장 클라우드 발행 %s (KST) ===" % now.strftime("%Y-%m-%d %H:%M"))
     log("대상 %d편: %s" % (len(due), ", ".join(c for _, c, _ in due) or "(없음)"))
 
     if DRY:
