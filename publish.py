@@ -366,6 +366,16 @@ def main():
         else:
             log("  [인스타] 이미 발행됨")
 
+        # 유튜브+인스타 둘 다 발행 끝난 영상은 Pages에 둘 이유가 없다.
+        # 저장소 용량을 줄이려고 발행 완료 즉시 reels/thumbs 를 지운다(발행 기록은 남는다).
+        if cid in yt_sent and cid in ig_sent:
+            for f in (ROOT / "reels" / ("%s.mp4" % cid),
+                      ROOT / "thumbs" / ("%s.jpg" % cid)):
+                if f.exists():
+                    f.unlink()
+                    log("  [정리] %s 삭제 — 발행 완료라 저장소에서 제거" % f.name)
+                    changed = True
+
     log("\n=== 완료 (변경 %s) ===" % ("있음" if changed else "없음"))
     # GitHub Actions에 커밋 필요 여부 전달
     gh_out = os.environ.get("GITHUB_OUTPUT")

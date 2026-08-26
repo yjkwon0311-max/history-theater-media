@@ -51,6 +51,6 @@ jobs:
         run: |
           git config user.name "history-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add yt_sent.json ig_sent.json
-          git commit -m "발행 기록 갱신 [skip ci]" || echo "변경 없음"
+          git add -A
+          git commit -m "발행 기록 갱신 + 발행완료 영상 정리 [skip ci]" || echo "변경 없음"
           git push
