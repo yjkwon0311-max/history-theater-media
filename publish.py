@@ -253,6 +253,32 @@ def ig_publish(cid, p, token):
     return {"media_id": mid, "at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}
 
 
+# --------------------------------------------------------------- 첫 댓글 --
+# 발행 직후 운영자 첫 댓글을 자동으로 단다. 문구는 comments_text.json(편별).
+COMMENTS_TEXT = ROOT / "comments_text.json"
+
+
+def comment_text_for(cid):
+    return load_json(COMMENTS_TEXT, {}).get(cid)
+
+
+def yt_comment(video_id, text, token):
+    body = json.dumps({"snippet": {"videoId": video_id,
+                       "topLevelComment": {"snippet": {"textOriginal": text}}}},
+                      ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(
+        "https://www.googleapis.com/youtube/v3/commentThreads?part=snippet",
+        data=body, method="POST")
+    req.add_header("Authorization", "Bearer " + token)
+    req.add_header("Content-Type", "application/json; charset=UTF-8")
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return json.loads(r.read().decode())
+
+
+def ig_comment(media_id, text, token):
+    return ig_post("%s/comments" % media_id, token, message=text)
+
+
 # ------------------------------------------------------------------- main --
 
 def due_items(posts, yt_sent, ig_sent, now):
@@ -308,11 +334,18 @@ def main():
     changed = False
     for at_dt, cid, p in due:
         log("\n--- %s (%s)" % (cid, at_dt.strftime("%m-%d %H:%M")))
+        msg = comment_text_for(cid)
         if cid not in yt_sent:
             try:
                 yt_sent[cid] = yt_upload(cid, p, yt_token)
                 save_json(YT_SENT, yt_sent)
                 changed = True
+                if msg:
+                    try:
+                        r = yt_comment(yt_sent[cid]["video_id"], msg, yt_token)
+                        log("  [유튜브] 첫 댓글 완료 (id=%s)" % r.get("id"))
+                    except (Exception, SystemExit) as e:
+                        log("  [유튜브] 첫 댓글 실패: %s" % e)
             except (SystemExit, RuntimeError) as e:
                 log("  %s — 다음 실행에 재시도" % e)
         else:
@@ -322,6 +355,12 @@ def main():
                 ig_sent[cid] = ig_publish(cid, p, ig_token)
                 save_json(IG_SENT, ig_sent)
                 changed = True
+                if msg:
+                    try:
+                        r = ig_comment(ig_sent[cid]["media_id"], msg, ig_token)
+                        log("  [인스타] 첫 댓글 완료 (id=%s)" % r.get("id"))
+                    except (Exception, SystemExit) as e:
+                        log("  [인스타] 첫 댓글 실패: %s" % e)
             except (SystemExit, RuntimeError) as e:
                 log("  %s — 다음 실행에 재시도" % e)
         else:
