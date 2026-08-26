@@ -1,4 +1,4 @@
-name: 소름 자동 발행
+name: 역사 실화극장 자동 발행
 
 # 발행 시각(KST) = cron(UTC) + 5분 여유 (at <= now 보장)
 #   07:00 KST = 22:00 UTC(전날)   → 22:05
@@ -49,7 +49,7 @@ jobs:
       - name: 발행 기록 커밋
         if: steps.pub.outputs.changed == 'true'
         run: |
-          git config user.name "chills-bot"
+          git config user.name "history-bot"
           git config user.email "bot@users.noreply.github.com"
           git add yt_sent.json ig_sent.json
           git commit -m "발행 기록 갱신 [skip ci]" || echo "변경 없음"
