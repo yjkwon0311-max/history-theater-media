@@ -312,8 +312,21 @@ def main():
     if DRY:
         log("\n[DRY_RUN] 발행하지 않고 자격만 검증합니다.")
         try:
-            yt_access_token()
-            log("  [유튜브] 토큰 OK")
+            _tok = yt_access_token()
+            try:
+                _req = urllib.request.Request(
+                    "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true")
+                _req.add_header("Authorization", "Bearer " + _tok)
+                with urllib.request.urlopen(_req, timeout=60) as _r:
+                    _ch = json.loads(_r.read().decode())
+                _it = (_ch.get("items") or [{}])[0]
+                _title = _it.get("snippet", {}).get("title", "?")
+                _cid = _it.get("id", "?")
+                _ok = "역사 실화극장" in _title
+                log("  [유튜브] 토큰 OK — 채널=[%s] (%s) %s"
+                    % (_title, _cid, "✅역사 맞음" if _ok else "⚠️역사 아님! 잘못된 채널"))
+            except Exception as _e:
+                log("  [유튜브] 토큰 OK (채널 확인 실패: %s)" % _e)
         except SystemExit as e:
             log("  [유튜브] 토큰 실패: %s" % e)
         try:
