@@ -117,9 +117,45 @@ def _post_form(url, data):
         return {"_error": "%s %s" % (e.code, e.read().decode("utf-8", "replace"))}
 
 
+# ── 쿠팡 파트너스 제휴 (Phase 1 반자동) ────────────────────────────
+# 역사 채널은 셰프처럼 '오늘 재료'가 없다. 그래서 두 가지를 함께 지원한다.
+#  (1) COUPANG_FIXED : 모든 영상에 공통으로 붙는 역사 관심층 상품(책·지도 등).
+#  (2) COUPANG_LINKS : 캡션에 시대/인물 키워드가 있으면 관련 상품을 추가 매칭.
+# 링크는 파트너스 웹에서 수동 생성한 딥링크(최종 승인 전). 설계: chefs_recipe/쿠팡제휴_설계.md.
+# 두 목록이 비어 있으면 affiliate_block 이 ''를 돌려줘 출력에 아무 변화가 없다(안전).
+# 역사 교양서 고정 3권(2026-10-16 파트너스 웹 생성, 채널=기본값). 모든 영상에 공통 삽입.
+COUPANG_FIXED = [
+    ("총, 균, 쇠 (재레드 다이아몬드)", "https://link.coupang.com/a/hSW5FrOpkO"),
+    ("사피엔스 (유발 하라리)", "https://link.coupang.com/a/hSW8LGfyj6"),
+    ("역사의 쓸모 (최태성)", "https://link.coupang.com/a/hSW962DzLU"),
+]
+COUPANG_LINKS = {
+    # 시대/인물 키워드 매칭용(선택). 예: "조선": "https://link.coupang.com/a/XXXXXXXX",
+}
+COUPANG_MAX = 3  # 한 영상당 링크 상한(스팸·신뢰 하락 방지)
+COUPANG_DISCLOSURE = "※ 이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
+
+
+def affiliate_block(caption):
+    """고정 상품 + 캡션 키워드 매칭 상품의 쿠팡 링크 블록. 링크 없으면 '' (변화 없음)."""
+    cap = caption or ""
+    hits = list(COUPANG_FIXED)
+    seen = {u for _, u in hits}
+    for n, u in COUPANG_LINKS.items():
+        if n in cap and u not in seen:
+            hits.append((n, u)); seen.add(u)
+    hits = hits[:COUPANG_MAX]
+    if not hits:
+        return ""
+    lines = ["", "📚 역사 더 깊이 보기 (쿠팡)"]
+    lines += ["· %s → %s" % (n, u) for n, u in hits]
+    lines.append(COUPANG_DISCLOSURE)
+    return "\n".join(lines)
+
+
 def yt_meta(p):
     title = p["title"][:99]
-    desc = (p.get("caption", "") + "\n\n#Shorts")[:4900]
+    desc = (p.get("caption", "") + affiliate_block(p.get("caption", "")) + "\n\n#Shorts")[:4900]
     tags = [w[1:] for w in p.get("caption", "").split() if w.startswith("#")][:15]
     return {
         "snippet": {"title": title, "description": desc, "tags": tags,
@@ -353,9 +389,13 @@ def main():
                 yt_sent[cid] = yt_upload(cid, p, yt_token)
                 save_json(YT_SENT, yt_sent)
                 changed = True
-                if msg:
+                yt_msg = msg
+                _aff = affiliate_block(p.get("caption", ""))
+                if _aff:
+                    yt_msg = ((msg or "") + "\n" + _aff).strip()
+                if yt_msg:
                     try:
-                        r = yt_comment(yt_sent[cid]["video_id"], msg, yt_token)
+                        r = yt_comment(yt_sent[cid]["video_id"], yt_msg, yt_token)
                         log("  [유튜브] 첫 댓글 완료 (id=%s)" % r.get("id"))
                     except (Exception, SystemExit) as e:
                         log("  [유튜브] 첫 댓글 실패: %s" % e)
